@@ -13,6 +13,9 @@ import sys
 from utils.metrics import quadratic_weighted_kappa
 from utils.variables import search_space_xgb, search_space_lgbm, search_space_catboost, search_space_rf, search_space_logistic, search_knn, search_space_SVC
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from warnings import filterwarnings
+
+filterwarnings('ignore')
 
 
 
@@ -34,7 +37,7 @@ if __name__=="__main__":
     train = pd.read_csv(train_path)
     # train = train.drop("PreInt_EduHx-Season.1", axis=1)
 
-    # List of columns to impute
+    # List of columns to impute (categorical variables that were not imputed in our soft impute preprocessing)
     to_impute = ['FGC-FGC_CU_Zone', 'FGC-FGC_GSND_Zone', 'FGC-FGC_GSD_Zone',
                 'FGC-FGC_PU_Zone', 'FGC-FGC_SRL_Zone', 'FGC-FGC_SRR_Zone',
                 'FGC-FGC_TL_Zone', 'BIA-BIA_Activity_Level_num', 'BIA-BIA_Frame_num']
@@ -45,8 +48,7 @@ if __name__=="__main__":
             most_common_class = train[column].mode()[0]  # Get the most frequent value
             train[column].fillna(most_common_class, inplace=True)
 
-    # preprocessing
-
+    # preprocessing (one hot encoding of categorical variables)
     cat_c = ['Basic_Demos-Enroll_Season', 'CGAS-Season', 'Physical-Season', 'Fitness_Endurance-Season', 
             'FGC-Season', 'BIA-Season', 'PAQ_A-Season', 'PAQ_C-Season', 'SDS-Season', 'PreInt_EduHx-Season']
     pciat = train.columns[train.columns.str.startswith('PCIAT-PCIAT')].tolist() + ['sii', "PCIAT-Season"]
@@ -56,31 +58,45 @@ if __name__=="__main__":
     train_clean = train_clean.drop(to_drop, axis=1)
     train_clean = train_clean.dropna(subset=pciat)
 
+    # Split the data into train, val and test
     x_train, x_test, y_train, y_test = train_test_split(train_clean.drop(pciat, axis=1), train_clean['sii'], test_size=0.2, random_state=42)
-
     x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
     results = []
-
-    from warnings import filterwarnings
-    filterwarnings('ignore')
 
     for clf in dict_models.keys():
 
         print("Training model: ", clf)
 
+        # Get the model and search space
         clf_model = dict_models[clf]['model']
         search_space = dict_models[clf]['search_space']
 
+        # Define the objective function
         def objective(params):
+            """
+            Objective function for optimizing a classifier model.
+            This function trains a classifier model with the given parameters, 
+            makes predictions on the validation set, and calculates the 
+            quadratic weighted kappa score as the evaluation metric.
+            Args:
+                params (dict): Dictionary of parameters to be used for the classifier model.
+            Returns:
+                dict: A dictionary containing the negative quadratic weighted kappa score 
+                      as 'loss' and the status 'STATUS_OK'.
+            """
+
             if clf=="lgbm":
                 params["verbose"] = -1
             if clf=="catboost":
-                params["verbose"] = 0   
+                params["verbose"] = 0
+
             model = clf_model(**params)
             model.fit(x_train.to_numpy(), y_train.to_numpy())
+
             y_pred = model.predict(x_val.to_numpy())
             score = cohen_kappa_score(y_val, y_pred, weights='quadratic')
+
             return {'loss': -score, 'status': STATUS_OK}
         
         # Fine Tuning model
@@ -134,4 +150,5 @@ if __name__=="__main__":
 
     results = pd.concat(results)
 
+    # Save the results
     results.to_csv(f"final_results/{name}_results.csv")
