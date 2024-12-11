@@ -33,17 +33,18 @@ if __name__=="__main__":
     # train = train.drop("PreInt_EduHx-Season.1", axis=1)
 
     # List of columns to impute
-    # to_impute = ['FGC-FGC_CU_Zone', 'FGC-FGC_GSND_Zone', 'FGC-FGC_GSD_Zone',
-    #             'FGC-FGC_PU_Zone', 'FGC-FGC_SRL_Zone', 'FGC-FGC_SRR_Zone',
-    #             'FGC-FGC_TL_Zone', 'BIA-BIA_Activity_Level_num', 'BIA-BIA_Frame_num']
+    to_impute = ['FGC-FGC_CU_Zone', 'FGC-FGC_GSND_Zone', 'FGC-FGC_GSD_Zone',
+                'FGC-FGC_PU_Zone', 'FGC-FGC_SRL_Zone', 'FGC-FGC_SRR_Zone',
+                'FGC-FGC_TL_Zone', 'BIA-BIA_Activity_Level_num', 'BIA-BIA_Frame_num']
 
     # Impute each column with its most common class
-    # for column in to_impute:
-    #     if column in train.columns:
-    #         most_common_class = train[column].mode()[0]  # Get the most frequent value
-    #         train[column].fillna(most_common_class, inplace=True)
+    for column in to_impute:
+        if column in train.columns:
+            most_common_class = train[column].mode()[0]  # Get the most frequent value
+            train[column].fillna(most_common_class, inplace=True)
 
-    ts = pd.read_csv("time_series_extraction/all_participants_ts_extract_train.csv")
+    # ts = pd.read_csv("time_series_extraction/all_participants_ts_extract_train.csv")
+    ts = pd.read_csv("time_series_extraction/ts_extract_train_merged.csv")
     ts["id"] = ts["kid_id"]
     ts = ts.drop(columns=["kid_id", "index"])
 
@@ -61,6 +62,8 @@ if __name__=="__main__":
     train_clean = train_clean.dropna(subset=pciat)
 
     x_train, x_test, y_train, y_test = train_test_split(train_clean.drop(pciat, axis=1), train_clean['sii'], test_size=0.2, random_state=42)
+
+    x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, random_state=42)
 
     results = []
 
@@ -81,8 +84,8 @@ if __name__=="__main__":
                 params["verbose"] = 0   
             model = clf_model(**params)
             model.fit(x_train.to_numpy(), y_train.to_numpy())
-            y_pred = model.predict(x_test.to_numpy())
-            score = cohen_kappa_score(y_test, y_pred, weights='quadratic')
+            y_pred = model.predict(x_val.to_numpy())
+            score = cohen_kappa_score(y_val, y_pred, weights='quadratic')
             return {'loss': -score, 'status': STATUS_OK}
         
         # Fine Tuning model
@@ -121,10 +124,19 @@ if __name__=="__main__":
         model.fit(x_train.to_numpy(), y_train.to_numpy())
 
         # Predict on the test set
-        y_pred = model.predict(x_test.to_numpy())
+        y_pred_test = model.predict(x_test.to_numpy())
+        y_pred_val = model.predict(x_val.to_numpy())
+        y_pred_train = model.predict(x_train.to_numpy())
 
-        results.append(pd.DataFrame(index = [clf], data = {'QWK': [cohen_kappa_score(y_test, y_pred, weights='quadratic')], 'params': [best_params], "Accuracy": [model.score(x_test.to_numpy(), y_test.to_numpy())]}))
+        # results.append(pd.DataFrame(index = [clf], data = {'QWK': [cohen_kappa_score(y_test, y_pred, weights='quadratic')], 'params': [best_params], "Accuracy": [model.score(x_test.to_numpy(), y_test.to_numpy())]}))
+        results.append(pd.DataFrame(index = [clf], data = {'QWK_test': [cohen_kappa_score(y_test, y_pred_test, weights='quadratic')], 
+                                                           "QWK_val": [cohen_kappa_score(y_val, y_pred_val, weights='quadratic')], 
+                                                           "QWK_train": [cohen_kappa_score(y_train, y_pred_train, weights='quadratic')],
+                                                           'acc_test': [model.score(x_test.to_numpy(), y_test.to_numpy())],
+                                                           'acc_val': [model.score(x_val.to_numpy(), y_val.to_numpy())],
+                                                           'acc_train': [model.score(x_train.to_numpy(), y_train.to_numpy())],
+                                                           'params': [best_params]}))
 
     results = pd.concat(results)
 
-    results.to_csv(f"results/{name}_fine_tuning_results.csv")
+    results.to_csv(f"final_results/{name}_results.csv")

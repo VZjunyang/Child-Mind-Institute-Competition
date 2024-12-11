@@ -1,5 +1,0 @@
-,QWK,params,Accuracy
-xgb,0.41128995865717377,"{'colsample_bytree': 0.8793770359688631, 'learning_rate': 0.1404877033633703, 'max_depth': 4, 'n_estimators': 260, 'subsample': 0.5337114618970547}",0.6130841121495327
-lgbm,0.4139018894089097,"{'learning_rate': 0.041868900866036694, 'max_depth': 6, 'n_estimators': 130, 'subsample': 0.7676049753656189}",0.6429906542056075
-catboost,0.3976674230462228,"{'depth': 3.0, 'iterations': 500.0, 'learning_rate': 0.14036371466594133, 'verbose': 0}",0.6242990654205608
-rf,0.32125346089837836,"{'max_depth': 9, 'max_features': 0.779639192566345, 'n_estimators': 200}",0.6261682242990654
