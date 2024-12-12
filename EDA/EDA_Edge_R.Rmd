@@ -1,0 +1,220 @@
+---
+title: "EDA"
+author: "Team"
+date: '2024-12-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(mosaic) 
+library(ggformula)
+library(Stat2Data)
+library(tidyverse)
+library(car)
+library(dplyr)
+library(plyr)
+library(caret)
+library(ISLR)
+library(fastDummies)
+library(lares)
+library(gridExtra)
+library(RColorBrewer)
+library(kableExtra)
+library(ggplot2)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(tidyr)
+library(randomForest)
+library(scales)
+library(MASS)
+library(lmerTest)
+library(lme4)
+library(knitr)
+```
+
+## Loading our Data
+
+```{r}
+library(readr)
+train <- read_csv("~/Desktop/15.072_AAE/Project/tabular_data/train.csv")
+
+test <- read_csv("~/Desktop/15.072_AAE/Project/tabular_data/test.csv")
+```
+
+## Here we aim to show some exploratory data analysis to further understand the tabular data that we have. There is a great deal of missing data in these data sets, which makes the problem we aim to solve both interesting and difficult. Recall that the subjects/observations in the model are indeed humans. Human nature is unpredictable and often the information that we have on human subjects is sporadic. This data displays this uncertainty regarding human behavior.
+
+```{r}
+# Number of NA values in the training data:
+total_NAs_train <- sum(is.na(train))
+cat("Number of NAs in train: ", total_NAs_train, "\n")
+
+# Number of NA values in the testing data:
+total_NAs_test <- sum(is.na(test))
+cat("Number of NAs in test: ", total_NAs_test, "\n")
+
+total_NAs <- total_NAs_test + total_NAs_train
+cat("Total Number of NAs: ", total_NAs, "\n")
+```
+
+### There are a total of 132307 NA values in the data.
+
+### We can now look at the number of NA values per column in this data.
+
+```{r}
+NAs_per_column_train <- colSums(is.na(train))
+
+for (col_name in names(NAs_per_column_train)) {
+  cat("Number of NAs in column", col_name, ":", NAs_per_column_train[col_name], "\n")
+}
+
+NAs_per_column_train_df <- as.data.frame(NAs_per_column_train)
+
+NAs_per_column_train_df
+```
+
+```{r}
+NAs_per_column_test <- colSums(is.na(test))
+
+for (col_name in names(NAs_per_column_test)) {
+  cat("Number of NAs in column", col_name, ":", NAs_per_column_test[col_name], "\n")
+}
+
+NAs_per_column_test_df <- as.data.frame(NAs_per_column_test)
+
+NAs_per_column_test_df
+```
+
+### According to the output above, we can see that there is a substantial amount of NA values in nearly every column included in both the training and testing set of data relative to the total number of observations included in either data set. This high amount of missing data again is a major challenge, which is also a main point of this project. Data imputation could be important in order to appropriately predict the target variable, `ssi`. Furthermore, it is important to note that the target variable and the variables that are used to calculate the target variable, which begin with `PCIAT` all have a very high amount of NA values as well.
+
+### Let's try to glean some information about the target variable, `ssi`.
+
+#### Box Plot series
+
+```{r}
+train$sii <- as.factor(train$sii)
+
+ggplot(train, aes(x=sii, y=`Physical-BMI`, fill=sii)) + 
+  scale_fill_manual(values = c("lavender","slategray3","cornsilk", "aquamarine4", "dimgrey")) +
+  labs(title="Physical BMI by sii level",
+       x="sii", 
+       y = "BMI")+ #labels such as titles, and axis labels.
+  geom_boxplot(width=0.8)+ #sets the width of the boxplots used
+  #coord_cartesian(ylim =  c(0, 2800))+: this is optional, and allows one to set the range on the y-axis
+  theme_classic() +
+  guides(fill=guide_legend(title = "sii level"))+
+  scale_y_continuous(breaks = extended_breaks(n = 10)) #determines intervals on the y-axis
+
+#Violin Plot
+ggplot(train, aes(x=sii, y=`Physical-BMI`, fill=sii)) + 
+  geom_violin(trim=FALSE)+
+  scale_fill_manual(values = c("lavender","slategray3","cornsilk", "aquamarine4", "dimgrey")) + #set color values for your legend
+  labs(title="Physical BMI by ssi level",
+       x="sii",
+       y = "BMI")+ #labels for the plot
+  theme_classic() +
+  guides(fill=guide_legend(title = "sii level"))+ #legend title
+  scale_y_continuous(breaks = extended_breaks(n = 10)) #determines intervals on the y-axis
+
+
+# Violin and Boxplot Overlay
+ggplot(train, aes(x=sii, y=`Physical-BMI`, fill=sii)) + 
+  geom_violin(trim=FALSE)+
+  scale_fill_manual(values = c("lavender","slategray3","cornsilk", "aquamarine4", "dimgrey")) +
+  labs(title="Physical BMI by ssi level",
+       x="sii", 
+       y = "BMI")+ #labels such as titles, and axis labels.
+  geom_boxplot(width=0.3)+ #sets the width of the boxplots used
+  theme_classic() +
+  guides(fill=guide_legend(title = "sii level"))+
+  scale_y_continuous(breaks = extended_breaks(n = 10)) #determines intervals on the y-axis
+
+favstats(`Physical-BMI` ~ sii, data = train)
+```
+
+### According to the box plot overlayed with a violin plot shown, we can learn from some important observations. Namely, the wider width of the lavender plot for an `sii` level of 0 shown that a lot of values in the data fall within the range of about a BMI of 15 and 19 for an `sii` level of 0, which suggests that many observations in the `sii` level 0 group have lower BMIs. On the other hand, when observing the aquamarine colored plot for an `sii` level of 3, we can see that the width of the violin is much narrower than the other `sii` values included in the plot. However, from BMI values of about 20 to 29, it appears most of the data falls within this range for observations in the`sii` level of 3. We can also note that according to the box plots there does not appear to be meaningful differences in the BMI between the `ssi` levels; however, we can notice a slight increase in the BMI distributions as the `sii` level increases. Namely, it appears that an `sii` level of 0 includes mostly observations with lower BMIs, while an `sii` level of 3 includes more observations with higher BMIs. Perhaps these observations may provide indications about the habits of individual subjects.
+
+### Recall that `sii` refers to "Severe Impairment Index" and higher values mean that an observation has more of a problem pertaining to problematic internet usage. It could be the case that the physical attributes of the observations can allow for inferences to be made regarding how problematic their internet usage might be. This plot tends to make some sense under a managerial lens as children who exercise less as a result of a high amount of interaction with the internet may develop higher BMIs. However, at this point, this is simply an inference, and should not be taken as a ground truth. Moving forward into modeling processes, we should however remember to consider the `Physical-BMI` as a potential variable of importance for predicting `sii`.
+
+### We can create similar plots for all of the variables that pertain to physical features in the data:
+
+```{r}
+# Find all columns pertaining to physical features:
+
+physical_features <- c("Physical-Height", "Physical-Weight", 
+                       "Physical-Waist_Circumference", "Physical-Diastolic_BP", 
+                       "Physical-HeartRate", "Physical-Systolic_BP")
+```
+
+```{r}
+# Data preprocessing for plotting
+df_physical_train <- train %>%
+  dplyr::select(all_of(physical_features), sii) %>%
+  pivot_longer(cols = all_of(physical_features), 
+               names_to = "Feature", 
+               values_to = "Value")  # Convert to long format for use with ggplot
+```
+
+```{r}
+# Function to generate violin and box plots for the remaining physical features.
+generate_plots <- function(data, feature) {
+  ggplot(data %>% filter(Feature == feature), aes(x = factor(sii), y = Value, fill = factor(sii))) +
+    geom_violin(trim = FALSE, alpha = 0.6) +  # Violin plot for density
+    geom_boxplot(width = 0.1, outlier.size = 0.5, alpha = 0.8) +  # Box plot inside violin
+    labs(title = paste("Distribution of", feature, "by sii Level"),
+         x = "sii", y = feature, fill = "sii") +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5, size = 14))
+}
+```
+
+```{r}
+ggplot(df_physical_train, aes(x = as.factor(sii), y = Value, fill = as.factor(sii))) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.4, outlier.shape = NA, alpha = 0.5) +
+  scale_fill_manual(values = c("lavender","slategray3","cornsilk", "aquamarine4", "dimgrey")) +
+  facet_wrap(~Feature, scales = "free_y") +
+  labs(title = "Physical Features by SII Level", x = "SII Level", y = "Value") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+### The boxplots shown here can be interpreted in a very similar fashion as the box plot shown previously that relates `Physical-BMI` to `sii`. Overall, of the physical features included in the data set, it appears that the diastolic blood pressures, heart rates, and systolic blood pressures are fairly similar across all `sii` groups. However, we do see some differences in the distributions for weight, waist circumference, and BMI, which may be important features to consider when we move into modeling.
+
+## We can now investigate the variable, `PreInt_EduHx-computerinternet_hoursday`, which is closely related to the target variable `sii`. `PreInt_EduHx-computerinternet_hoursday` refers to the number of hours that an observation spends using the compute or being engaged with the internet. This is a categorical variable where 0=Less than 1h/day, 1=Around 1h/day, 2=Around 2hs/day, and 3=More than 3hs/day.
+
+```{r}
+
+x_true_labels <- c(
+  "0" = "Less than 1 hour",
+  "1" = "Around 1 hour",
+  "2" = "Around 2 hours",
+  "3" = "More than 3 hours"
+)
+
+
+plot <- ggplot(train, aes(x = `PreInt_EduHx-computerinternet_hoursday`,  fill = sii)) +
+  geom_bar(position = "stack") +
+  labs(
+    title = "Stacked Bar Plot of ",
+    x = "Hours spent on the internet per day",
+    y = "Count",
+    fill = "sii",
+  ) + scale_fill_manual(values = c("lavender","slategray3","cornsilk", "aquamarine4", "dimgrey")) +
+  scale_x_discrete(labels = x_true_labels)+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ # Rotate x-axis
+  theme_minimal()
+
+plot + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+### According to the stacked bar plot, it is again noticeable that there are many NA values for `sii` across the various different levels of hours that a subject spends on the internet per day. However, we do notice that there is an abundance of observations that fall into a `sii` level of 0 that also use the internet for less than 1 hour per day. This observation is interesting and may be useful moving forward. It is reasonable to infer that a child that spends less time on the internet per day has less of a chance to develop bad habits pertaining to over usage and reliance on the internet. Again, thinking about the observations from our EDA under a managerial lens is important in moving to the next steps regarding what features may be important predictors of the `sii`, which is our target variable.
+
+## Other important features to consider moving forward:
+
+There is a wide array of features in the data set that pertain to various features regarding a child's physical health and fitness. These features include information about a child's test performance on a series of fitness tests as well information on a child's bio electrical impedance analysis, which refers to body composition data.
+
+Moving forward into the modeling process, we aim to use as many of the important features as possible in an effort to predict `sii`. It should be noted that from a managerial perspective it makes good sense to use all of the data included as these metrics largely give insight into a child's physical health and fitness, which may allow us to make inferences on the child's time spent using the internet. It follows that children who are more fit and healthy may be exercising more and spending less time interacting with the internet. However, the nature of this problem is inherently difficult because typically, information regarding problematic internet usage is self-reported. In this case, we aim to leverage physical fitness data as well, which is clearly measured and less susceptible to bias than self-reported data.
