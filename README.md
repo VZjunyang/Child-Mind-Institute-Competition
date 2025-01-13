@@ -1,7 +1,7 @@
 # Advanced Analytics Edge: Detecting Problematic Internet Usage
 
 ## Project Overview
-This project aims to predict and detect early indicators of problematic internet usage among children and adolescents using sparse data from the Healthy Brain Network (HBN) dataset. The dataset includes physical activity levels, medical data, and survey data. The primary objective is to predict the Severity Impairment Index (`SII`), which measures the level of problematic internet usage.
+This project aims to predict and detect early indicators of problematic internet usage among children and adolescents using sparse data from the Healthy Brain Network (HBN) dataset. The dataset includes physical activity levels, medical data, and survey data. The primary objective is to predict the Severity Impairment Index (`SII`), which measures the level of problematic internet usage......
 
 ## Authors
 - **Andres Camarillo**
@@ -18,7 +18,7 @@ This project aims to predict and detect early indicators of problematic internet
 ## Dataset
 The HBN dataset includes:
 - **Tabular Data**: Demographics, BMI, physical fitness tests, and survey responses.
-- **Time Series Data**: Accelerometer data tracking movement and light exposure for 998 children.
+- **Time Series Data**: Accelerometer data tracking movement and light exposure for 998 children. 
 
 ## Challenges
 - **Sparse Data**: Both tabular and time series data have a large number of missing observations.
