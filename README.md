@@ -6,7 +6,7 @@ This project aims to predict and detect early indicators of problematic internet
 ## Authors
 - **Andres Camarillo**
 - **Shane Epstein-Petrullo**
-- **Azfal Peermohammed**
+- **Azfal Peermohammed**.................................
 - **Sabal Ranabhat**
 - **Victor Zhuang**
 
